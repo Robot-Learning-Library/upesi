@@ -3,12 +3,15 @@
 Code for paper [Not Only Domain Randomization: Universal Policy with Embedding System Identification](https://arxiv.org/abs/2109.13438).
 
  ## Installation
- This repo uses the same environment named [robolite](https://github.com/quantumiracle/robolite), which is a modified verison of [robosuite](https://surreal.stanford.edu) to support **domain randomisation** and **inverse kinematics (IK)**. Our modified environment is also used in [another project](https://github.com/quantumiracle/Robotic_Door_Opening_with_Tactile_Simulation). To install this environment, just to go to [robolite](https://github.com/quantumiracle/robolite) and clone it, then in the cloned folder (./robolite):
- ```
-pip install -r requirements.txt
-pip install -e .
- ```
- 
+ This repo uses the same environment named [robolite](https://github.com/quantumiracle/robolite), which is a modified verison of [robosuite](https://surreal.stanford.edu) to support **domain randomisation** and **inverse kinematics (IK)**. Our modified environment is also used in [another project](https://github.com/quantumiracle/Robotic_Door_Opening_with_Tactile_Simulation).
+
+ If you're installing this repo for the first time, please ensure that you have `anaconda` installed, and have `IsaacGym_Preview_3_Package.tar.gz` from [nvidia official website](https://developer.nvidia.com/isaac-gym) in this folder (`upesi`), then run `./initialization.sh` **using bash** without super user privilege.
+
+You'll then get a `conda` environment named `rlgpu`. 
+
+`isaacgymenvs`, `robolite` will be created as **siblings** of this directory.
+
+You should always **use bash** to run commands.
  ## Citation:
 Please cite the our paper if you make use of this repo:
 ```
@@ -29,7 +32,7 @@ First pretrained models are needed for each environment to rollout samples for f
 
 Remember to suspend parameter randomization (set `randomized_params=None` in `./default_params.py`) for getting this policy.
 ```
-python train.py --train --env inverteddoublependulum --process 1 --alg td3
+python train.py basic.env_name=inverteddoublependulum
 ```
 as an example for the InvertedDoublePendulum environment, using TD3 algorithm for training. After training, there will be weights in the data folder. You just need to replace the model path in later scripts with the one you got to make it run.
 

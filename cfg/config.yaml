@@ -1,0 +1,21 @@
+basic:
+  train: True
+  test: False
+  finetune: False
+  render: False
+  process: 1
+  path: ''
+  model_id: 0
+  seed: 42
+  env_name: ???
+  alg: td3
+  main_yaml_path: cfg/isaacgymenvs/config.yaml
+  task_yaml_path: cfg/isaacgymenvs/task/${.env_name}.yaml
+env:
+  name: ${..basic.env_name}
+  using_isaacgym: False
+
+  task: ${.raw_env_cfg.task}
+  sim_device: ${.raw_env_cfg.sim_device}
+  graphics_device_id: ${.raw_env_cfg.graphics_device_id}
+  headless: ${if:${..basic.render},False,True}

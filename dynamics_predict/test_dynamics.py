@@ -8,9 +8,9 @@ import sys, os
 sys.path.append(os.path.dirname(os.getcwd()))
 from dynamics_networks import DynamicsNetwork, DynamicsParamsOptimizer, EncoderDynamicsNetwork, EncoderDecoderDynamicsNetwork, VAEDynamicsNetwork
 from rl.policy_networks import DPG_PolicyNetwork
-from utils.load_params import load_params
-from utils.common_func import rand_params
-from environment import envs
+from upesi_utils.load_params import load_params
+from upesi_utils.common_func import rand_params
+from environment import our_envs
 from defaults import DYNAMICS_PARAMS, HYPER_PARAMS
 
 # torch.manual_seed(1234)  # Reproducibility
@@ -105,7 +105,7 @@ def test_dynamics_offline(Env, data_path, norm_factor=None, Type = 'EncoderDynam
 
 if __name__ == '__main__':
     path = os.path.abspath(os.path.join(os.path.dirname(__file__),".."))
-    Env = envs['pandapushik2dsimple']
+    Env = our_envs['pandapushik2dsimple']
     param_dim = len(DYNAMICS_PARAMS[Env.name+'dynamics'])
     print('current path: {}, env: {}, parameters dimension: {}'.format(path,Env,param_dim))
     Type = ['EncoderDynamicsNetwork', 'EncoderDecoderDynamicsNetwork', 'VAEDynamicsNetwork'][0]

@@ -8,10 +8,10 @@ import sys, os
 sys.path.append(os.path.dirname(os.getcwd()))
 from dynamics_networks import DynamicsNetwork, SINetwork, DynamicsParamsOptimizer, EncoderDynamicsNetwork, EncoderDecoderDynamicsNetwork, VAEDynamicsNetwork
 from rl.policy_networks import DPG_PolicyNetwork
-from utils.load_params import load_params
-from utils.common_func import rand_params
+from upesi_utils.load_params import load_params
+from upesi_utils.common_func import rand_params
 from defaults import DYNAMICS_PARAMS, HYPER_PARAMS
-from environment import envs
+from environment import our_envs
 from bayes_opt import BayesianOptimization
 import torch
 from test_dynamics import load_policy
@@ -23,7 +23,7 @@ class EmbeddingBayesianOptimization():
         self.y=s_
 #         self.x = tocrch.Tensor(np.load(data_path+'sa.npy'))
 #         self.y = torh.Tensor(np.load(data_path+'s_.npy'))
-        env = envs[Env_name]()
+        env = our_envs[Env_name]()
         self.env_name = Env_name
         self.dynamics_model = DynamicsNetwork(state_space=env.observation_space, action_space=env.action_space, \
                                               num_hidden_layers=6, param_dim=HYPER_PARAMS[self.env_name+'dynamics']['latent_dim'])
@@ -75,7 +75,7 @@ class EmbeddingBayesianOptimization():
 def rollout_policy(env_name, dynamics_params, optimized_embedding=None, episodes=10, load_policy_from=None, env_settings={}, default_params={}):
 
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    Env = envs[env_name]
+    Env = our_envs[env_name]
     env = Env(**env_settings, **default_params)
     params_key  = ['max_steps', 'hidden_dim', 'action_range']
     params = {k:v for k,v in zip (params_key, load_params('td3', env.__class__.__name__.lower(), params_key))}
@@ -139,7 +139,7 @@ if __name__ == '__main__':
     # load normalization factors
     [s_norm_mean, s_norm_std] = np.load(path+'/data/dynamics_data/{}/norm_factor_s.npy'.format(env_name))
     [s__norm_mean, s__norm_std] = np.load(path+'/data/dynamics_data/{}/norm_factor_s_.npy'.format(env_name))
-    s_dim = envs[env_name].observation_space.shape[0]
+    s_dim = our_envs[env_name].observation_space.shape[0]
 
     for name, model in model_list.items():
         data=[]
@@ -174,7 +174,7 @@ if __name__ == '__main__':
                 optimized_embedding = None
             elif name == 'up_si': # offline SI
                 env_name_ = env_name+'dynamics'
-                env = envs[env_name]()
+                env = our_envs[env_name]()
                 SImodel = SINetwork(env.observation_space, env.action_space, param_dim)
                 sa = test_data[idx]['sa']
                 optimized_embedding = SImodel.forward(torch.FloatTensor(np.array(sa[:frame_stack]).reshape(-1)).unsqueeze(0))[0].detach().numpy()

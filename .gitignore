@@ -1,2 +1,8 @@
 review.txt
-
+isaacgym
+IsaacGym*
+__pycache__
+data/weights
+*.npy
+runs
+.vscode

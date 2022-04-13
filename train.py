@@ -1,50 +1,32 @@
+import isaacgym # must be imported before torch
 
-import gym
-import argparse
-from gym import envs
-import os
-from rl.td3.train_td3 import train_td3
-from rl.ppo.train_ppo import train_ppo
+from omegaconf import OmegaConf
+# Resolvers used in hydra configs (see https://omegaconf.readthedocs.io/en/2.1_branch/usage.html#resolvers)
+OmegaConf.register_new_resolver('eq', lambda x, y: x.lower()==y.lower())
+OmegaConf.register_new_resolver('contains', lambda x, y: x.lower() in y.lower())
+OmegaConf.register_new_resolver('if', lambda pred, a, b: a if pred else b)
+OmegaConf.register_new_resolver('resolve_default', lambda default, arg: default if arg=='' else arg)
+
+from upesi_utils.load_params import load_default_training_params
+from environment import create_env, ISAAC_GYM_ENVS_LIST
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Train or test neural net motor controller.')
-    parser.add_argument('--train', dest='train', action='store_true', default=False)
-    parser.add_argument('--test', dest='test', action='store_true', default=False)
-    parser.add_argument('--env', type=str, help='Environment', required=True)
-    parser.add_argument('--render', dest='render', action='store_true',
-                    help='Enable openai gym real-time rendering')
-    parser.add_argument('--process', type=int, default=1,
-                    help='Process count for parallel exploration')
-    parser.add_argument('--model', dest='path', type=str, default=None,
-                help='Moddel weights location')
-    parser.add_argument('--model_id', dest='model_id', type=int, default=0,
-            help='Moddel weights id (step for saving the model)')
-    parser.add_argument('--finetune', dest='finetune', action='store_true', default=False,
-            help='Load a pretrained model and finetune it')
-    parser.add_argument('--seed', dest='seed', type=int, default=1234,
-            help='Random seed')
-    parser.add_argument('--alg', dest='alg', type=str, default='td3',
-                help='Choose algorithm type')
-    args = parser.parse_args()
+    cfg = OmegaConf.merge(OmegaConf.load('cfg/config.yaml'), OmegaConf.from_cli())
+    cfg.train = OmegaConf.create(load_default_training_params(cfg.basic.alg, cfg.basic.env_name))
+    if cfg.basic.env_name in ISAAC_GYM_ENVS_LIST:
+        cfg.env.using_isaacgym = True
+        cfg.env.raw_env_cfg = OmegaConf.load(cfg.basic.main_yaml_path)
+        cfg.env.raw_env_cfg.task = OmegaConf.load(cfg.basic.task_yaml_path)
 
-    MUJOCO_ENVS = ['acrobot', 'cartpole', 'mountaincar', 'pendulum', 'inverteddoublependulumdisc', 'inverteddoublependulum', \
-        'inverteddoublependulumdynamics', 'inverteddoublependulumdynamicsembedding', 'halfcheetah', 'halfcheetahdynamics', 'halfcheetahdynamicsembedding']
-    envs = envs.registry.all()
-    GYM_MOJUCO_ENVS = [env_spec.id for env_spec in envs]
+    env = create_env(cfg.env, verbose=True)
+    print(f'Observation space: {env.observation_space}')
+    print(f'Action space: {env.action_space}')
 
-    if args.env in GYM_MOJUCO_ENVS:
-        env = gym.make(args.env).unwrapped  # original envs from gym mujoco
-    elif args.env in (MUJOCO_ENVS):
-        from environment import envs
-        env = envs[args.env]()
-    else:
-        print('Environment {} not exists!'.format(args.env))
-    print('Environment Name:', args.env)
-    print('Observation space: {}  Action space: {}'.format(env.observation_space, env.action_space))
-
-    if args.alg=='td3':
-        train_td3(env, envs, args.train, args.test, args.finetune, args.path, args.model_id, args.render, args.process, args.seed)
-    elif args.alg=='ppo':
-        train_ppo(env, envs, args.train, args.test, args.finetune, args.path, args.model_id, args.render, args.process, args.seed)
+    if cfg.basic.alg=='td3':
+        from rl.td3.train_td3 import train_td3
+        train_td3(env, cfg)
+    elif cfg.basic.alg=='ppo':
+        from rl.ppo.train_ppo import train_ppo
+        raise NotImplemented
     else:
         print("Algorithm type is not implemented!")
