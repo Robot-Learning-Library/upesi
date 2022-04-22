@@ -1,3 +1,4 @@
+# In OmegaConf format. There may be interpolation notations like ${var}
 def get_hyperparams(env_name):
     if 'pandaopendoorfk' in env_name:
         hyperparams_dict={
@@ -212,13 +213,13 @@ def get_hyperparams(env_name):
     elif env_name == 'Cartpole':
         hyperparams_dict={
         'alg_name': 'td3',
-        'max_steps': 16,
+        'max_steps': 500,
         'max_episodes': 25000,
         'action_range': None,
         'batch_size': 8192,
         'explore_steps': 256,
         'update_itr': 100,  # iterative update
-        'eval_interval': 50, # evaluate the model and save it
+        'eval_interval': 10, # evaluate the model and save it
         'explore_noise_scale': 0.8, 
         'eval_noise_scale': 0.2,  # noisy evaluation trick
         'reward_scale': 1., # reward normalization
@@ -233,16 +234,16 @@ def get_hyperparams(env_name):
         'randomized_params': [],
         'deterministic': True,
         }
-    elif env_name == "FrankaCabinet":
+    elif env_name == "ShadowHand":
         hyperparams_dict={
         'alg_name': 'td3',
-        'max_steps': 100,
+        'max_steps': 600,
         'max_episodes': 10000,
         'action_range': 1,  # on joint
         'batch_size': 640,
         'explore_steps': 0,
         'update_itr': 100,  # iterative update
-        'eval_interval': 500, # evaluate the model and save it
+        'eval_interval': 10, # evaluate the model and save it
         'explore_noise_scale': 0.5, 
         'eval_noise_scale': 0.02,  # noisy evaluation trick
         'reward_scale': 1., # reward normalization in a batch

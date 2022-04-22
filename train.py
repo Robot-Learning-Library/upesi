@@ -8,12 +8,12 @@ OmegaConf.register_new_resolver('if', lambda pred, a, b: a if pred else b)
 OmegaConf.register_new_resolver('resolve_default', lambda default, arg: default if arg=='' else arg)
 
 from upesi_utils.load_params import load_default_training_params
-from environment import create_env, ISAAC_GYM_ENVS_LIST
+from environment import create_env, env_name2env_type
 
 if __name__ == '__main__':
     cfg = OmegaConf.merge(OmegaConf.load('cfg/config.yaml'), OmegaConf.from_cli())
     cfg.train = OmegaConf.create(load_default_training_params(cfg.basic.alg, cfg.basic.env_name))
-    if cfg.basic.env_name in ISAAC_GYM_ENVS_LIST:
+    if env_name2env_type[cfg.basic.env_name] == 'isaac':
         cfg.env.using_isaacgym = True
         cfg.env.raw_env_cfg = OmegaConf.load(cfg.basic.main_yaml_path)
         cfg.env.raw_env_cfg.task = OmegaConf.load(cfg.basic.task_yaml_path)

@@ -1,18 +1,24 @@
+import isaacgym # must be imported before torch
+
+from omegaconf import DictConfig, OmegaConf
+# Resolvers used in hydra configs (see https://omegaconf.readthedocs.io/en/2.1_branch/usage.html#resolvers)
+OmegaConf.register_new_resolver('eq', lambda x, y: x.lower()==y.lower())
+OmegaConf.register_new_resolver('contains', lambda x, y: x.lower() in y.lower())
+OmegaConf.register_new_resolver('if', lambda pred, a, b: a if pred else b)
+OmegaConf.register_new_resolver('resolve_default', lambda default, arg: default if arg=='' else arg)
+
 import numpy as np
 import random
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 import sys, os
-sys.path.append(os.path.dirname(os.getcwd()))
+sys.path.append('..')
 from dynamics_networks import DynamicsNetwork, SINetwork, DynamicsParamsOptimizer, EncoderDynamicsNetwork, EncoderDecoderDynamicsNetwork, VAEDynamicsNetwork
 from rl.policy_networks import DPG_PolicyNetwork
-from upesi_utils.load_params import load_params
+from upesi_utils.load_params import load_default_training_params
 from upesi_utils.common_func import rand_params
-from environment import our_envs
+from environment import create_env, env_name2env_type
 from defaults import DYNAMICS_PARAMS, HYPER_PARAMS
 from torch.utils.tensorboard import SummaryWriter
-import argparse
 
 writer = SummaryWriter()
 
@@ -33,14 +39,13 @@ def load_policy(env, load_from, params, policy_class=DPG_PolicyNetwork):
         policy.load_state_dict(torch.load(load_from, map_location=device))
     return policy
 
-def collect_train_data(Env, load_from=None, save_to=None, episodes=10000, env_settings={}, default_params={},):
+def collect_train_data(env_name: str, env_cfg: DictConfig, load_from=None, save_to=None, episodes=10000):
     """
     Collect the dataset for training the dynamics forward prediction model.
     """
-    env = Env(**env_settings, **default_params)
-    params_key  = ['max_steps', 'hidden_dim', 'action_range']
-    params = {k:v for k,v in zip (params_key, load_params('td3', env.__class__.__name__.lower(), params_key))}
-    policy = load_policy(env, load_from, params)
+    env = create_env(env_cfg, verbose=True)
+    train_param_dict = load_default_training_params('td3', env_name)
+    policy = load_policy(env, load_from, train_param_dict)
     if not policy.action_range:
         policy.action_range = env.action_space.high[0]  # mujoco env gives the range of action and it is symmetric
 
@@ -48,10 +53,13 @@ def collect_train_data(Env, load_from=None, save_to=None, episodes=10000, env_se
     for ep in range(episodes):
         print(ep)
         ep_r = 0
-        param_dict, param_vec = rand_params(env, DYNAMICS_PARAMS[env.name+'dynamics'])
-        s = env.reset(**param_dict)
-        for step in range(params['max_steps']):
-            a = policy.get_action(s, noise_scale=0.0)
+        if env_cfg.using_isaacgym:
+            pass
+        else:
+            rand_param_dict, param_vec = rand_params(env, DYNAMICS_PARAMS[env.name+'dynamics'])
+            s = env.reset(**rand_param_dict)
+        for step in range(train_param_dict['max_steps']):
+            a = policy.get_action(s, env_cfg.sim_batch_size, noise_scale=0.0)
             s_, r, d, _ = env.step(a)
             # env.render()
             data.append([[s, a, param_vec], s_])
@@ -414,33 +422,17 @@ def train_dynamics_embedding(Env, param_dim, Type = 'EncoderDynamicsNetwork', ep
     env.close()
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Train or test different modules.')
-    parser.add_argument('--env', type=str, help='Environment', required=True)
-    parser.add_argument('--collect_train_data', dest='CollectTrainData', action='store_true', default=False)
-    parser.add_argument('--collect_test_data', dest='CollectTestData', action='store_true', default=False)
-    parser.add_argument('--process_si_train_data', dest='ProcessSITrainData', action='store_true', default=False)
-    # parser.add_argument('--process_si_test_data', dest='ProcessSITestData', action='store_true', default=False)
-    parser.add_argument('--train_si', dest='TrainSI', action='store_true', default=False)
-    parser.add_argument('--train_dynamics', dest='TrainDynamics', action='store_true', default=False)
-    parser.add_argument('--train_params', dest='TrainParams', action='store_true', default=False)
-    parser.add_argument('--train_embedding', dest='TrainEmbedding', action='store_true', default=False)
-    args = parser.parse_args()
+    cfg = OmegaConf.merge(OmegaConf.load('../cfg/dynamics.yaml'), OmegaConf.from_cli())
+    assert os.path.exists(cfg.basic.load_path)
+    print(f'current path: {cfg.basic.load_path}, env: {cfg.basic.env_name}, parameters dimension: {len(cfg.dynamics_params_list.current)}')
 
-    path = os.path.abspath(os.path.join(os.path.dirname(__file__),".."))
-    Env = our_envs[args.env]  # 'pandapushik2dsimple' or 'inverteddoublependulum'
-    param_dim = len(DYNAMICS_PARAMS[args.env+'dynamics'])
-    print('current path: {}, env: {}, parameters dimension: {}'.format(path,Env,param_dim))
+    if env_name2env_type[cfg.basic.env_name] == 'isaac':
+        cfg.env.using_isaacgym = True
+        cfg.env.raw_env_cfg = OmegaConf.load(cfg.basic.main_yaml_path)
+        cfg.env.raw_env_cfg.task = OmegaConf.load(cfg.basic.task_yaml_path)
 
-    if args.CollectTrainData:
-        if args.env == 'pandapushik2dsimple':
-            collect_train_data(Env, load_from=path+'/data/weights/20210119_2007/4000'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env)
-        if args.env == 'pandapushfk':
-            collect_train_data(Env, load_from=path+'/data/weights/20210301_222527/4999'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env, episodes=3000)
-        elif args.env == 'inverteddoublependulum':
-            # collect_train_data(Env, load_from=path+'/data/weights/20201230_2039/1800'+'_td3_policy', save_to=path+args.env+'/data/dynamics_data')
-            collect_train_data(Env, load_from=path+'/data/weights/20201230_1735/1950'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env, episodes=10000)
-        elif args.env == 'halfcheetah':
-            collect_train_data(Env, load_from=path+'/data/weights/20210203_153134/22000'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env, episodes=2000)
+    if cfg.basic.command == 'collect_train_data':
+        collect_train_data(cfg.basic.env_name, cfg.env, cfg.basic.load_path, cfg.basic.save_dir, cfg.basic.episodes)
     
     if args.CollectTestData:
         if args.env == 'pandapushik2dsimple':

@@ -14,6 +14,7 @@ basic:
 env:
   name: ${..basic.env_name}
   using_isaacgym: False
+  sim_batch_size: ${if:${.using_isaacgym},${oc.select:.raw_env_cfg.task.env.numEnvs},1}
 
   task: ${.raw_env_cfg.task}
   sim_device: ${.raw_env_cfg.sim_device}

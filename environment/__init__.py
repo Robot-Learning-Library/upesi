@@ -1,8 +1,13 @@
+from collections import defaultdict
+
 from gym.core import Env
 from gym import make
 from gym import envs
 envs = envs.registry.all()
 from omegaconf import DictConfig
+
+from isaacgymenvs.tasks import isaacgym_task_map
+from isaacgymenvs.utils.reformat import omegaconf_to_dict
 
 from .gym_envs.acrobot import AcrobotEnv
 from .gym_envs.cartpole import CartPoleEnv
@@ -16,9 +21,6 @@ from .gym_envs.halfcheetah import HalfCheetahEnv
 from .gym_envs.halfcheetahdynamics import HalfCheetahDynamicsEnv
 from .gym_envs.halfcheetahdynamicsembedding import HalfCheetahDynamicsEmbeddingEnv
 from .isaacgymenvs_wrapper.isaacgymenvs_wrapper import IsaacGymEnvWrapper
-
-from isaacgymenvs.tasks import isaacgym_task_map
-from isaacgymenvs.utils.reformat import omegaconf_to_dict
 
 our_envs = {
     'acrobot': AcrobotEnv,
@@ -34,26 +36,32 @@ our_envs = {
     'halfcheetahdynamicsembedding': HalfCheetahDynamicsEmbeddingEnv,
 }
 
-MUJOCO_OUR_ENVS_LIST = our_envs.keys()
-MUJOCO_GYM_ENVS_LIST = [env_spec.id for env_spec in envs]
-ISAAC_GYM_ENVS_LIST = isaacgym_task_map.keys()
+env_type_info = {
+    'our_mujoco': {
+        'env_names': our_envs.keys(),
+        'create_func': lambda cfg: our_envs[cfg.name]()
+    },
+    'gym_mujoco': {
+        'env_names': [env_spec.id for env_spec in envs],
+        'create_func': lambda cfg: make(cfg.name).unwrapped
+    },
+    'isaac': {
+        'env_names': isaacgym_task_map.keys(),
+        'create_func': lambda cfg: IsaacGymEnvWrapper(
+        isaacgym_task_map[cfg.name](cfg=omegaconf_to_dict(cfg.task), sim_device=cfg.sim_device,
+                                graphics_device_id=cfg.graphics_device_id, headless=cfg.headless)
+        )
+    }
+}
+
+env_name2env_type = defaultdict(str)
+for env_type, info in env_type_info.items():
+    for env_name in info['env_names']:
+        assert not env_name2env_type[env_name], f'repeated environment name: {env_name}'
+        env_name2env_type[env_name] = env_type
 
 def create_env(cfg: DictConfig, verbose=False) -> Env:
-    if cfg.name in MUJOCO_OUR_ENVS_LIST:
-        if verbose:
-            print(f'name: {cfg.name}, type: ours')
-        return our_envs[cfg.name]()
-    elif cfg.name in MUJOCO_GYM_ENVS_LIST:
-        if verbose:
-            print(f'name: {cfg.name}, type: gym mujoco')
-        return make(cfg.name).unwrapped
-    elif cfg.name in ISAAC_GYM_ENVS_LIST:
-        if verbose:
-            print(f'name: {cfg.name}, type: isaacgym')
-        env = isaacgym_task_map[cfg.name](
-            cfg=omegaconf_to_dict(cfg.task),
-            sim_device=cfg.sim_device,
-            graphics_device_id=cfg.graphics_device_id,
-            headless=cfg.headless
-        )
-        return IsaacGymEnvWrapper(env)
+    env_type = env_name2env_type[cfg.name]
+    if verbose:
+        print(f'name: {cfg.name}, type: {env_type}')
+    return env_type_info[env_type]['create_func'](cfg)

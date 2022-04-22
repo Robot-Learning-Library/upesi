@@ -191,14 +191,12 @@ def worker(id, td3_trainer, env_name, env_cfg, rewards_queue, eval_rewards_queue
     writer = SummaryWriter()
 
     env = create_env(env_cfg)
-    
+
+    # assume that isaacgym -> sim_batch_size > 1
     if env_cfg.using_isaacgym:
-        sim_batch_size = env_cfg.task.env.numEnvs
-        assert sim_batch_size > 1
         assert int(env_cfg.sim_device[-1]) == env_cfg.graphics_device_id
         device_id = env_cfg.graphics_device_id
     else:
-        sim_batch_size = 1
         device_id = id % torch.cuda.device_count()
 
     with torch.cuda.device(device_id):
@@ -218,9 +216,9 @@ def worker(id, td3_trainer, env_name, env_cfg, rewards_queue, eval_rewards_queue
             
             for step in range(max_steps):
                 if frame_idx > explore_steps:
-                    action = td3_trainer.policy_net.get_action(state, sim_batch_size, noise_scale=current_explore_noise_scale)
+                    action = td3_trainer.policy_net.get_action(state, env_cfg.sim_batch_size, noise_scale=current_explore_noise_scale)
                 else:
-                    action = td3_trainer.policy_net.sample_action(sim_batch_size)
+                    action = td3_trainer.policy_net.sample_action(env_cfg.sim_batch_size)
                 try:
                     next_state, reward, done, info = env.step(action)
                     if render: 
@@ -244,8 +242,8 @@ def worker(id, td3_trainer, env_name, env_cfg, rewards_queue, eval_rewards_queue
                     print('Nan in data')
                     # print(state, action, reward, next_state, done)
                 else: # prevent nan in data 
-                    if sim_batch_size > 1:
-                        for i in range(sim_batch_size):
+                    if env_cfg.sim_batch_size > 1:
+                        for i in range(env_cfg.sim_batch_size):
                             replay_buffer.push(state[i], action[i], reward[i], next_state[i], done[i])
                     else:
                         replay_buffer.push(state, action, reward, next_state, done)
@@ -254,7 +252,7 @@ def worker(id, td3_trainer, env_name, env_cfg, rewards_queue, eval_rewards_queue
                 episode_reward += reward
                 frame_idx += 1
                 
-                if sim_batch_size == 1 and done:
+                if env_cfg.sim_batch_size == 1 and done:
                     break
             print('Worker: ', id, '|Episode: ', eps, '| Episode Reward: ', np.sum(episode_reward), '| Step: ', step)
             writer.add_scalar('episode_reward', np.sum(episode_reward), eps)
