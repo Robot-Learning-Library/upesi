@@ -53,19 +53,28 @@ def collect_train_data(env_name: str, env_cfg: DictConfig, load_from=None, save_
     for ep in range(episodes):
         print(ep)
         ep_r = 0
+
         if env_cfg.using_isaacgym:
-            pass
+            s = env.reset()
         else:
-            rand_param_dict, param_vec = rand_params(env, DYNAMICS_PARAMS[env.name+'dynamics'])
+            rand_param_dict, params_vec = rand_params(env, DYNAMICS_PARAMS[env.name+'dynamics'])
             s = env.reset(**rand_param_dict)
+
         for step in range(train_param_dict['max_steps']):
             a = policy.get_action(s, env_cfg.sim_batch_size, noise_scale=0.0)
-            s_, r, d, _ = env.step(a)
-            # env.render()
-            data.append([[s, a, param_vec], s_])
+            s_, r, d, i = env.step(a)
+            
+            if env_cfg.using_isaacgym:
+                params_vec = i.get('params_vec')
+                for index in range(len(s)):
+                    if not np.isnan(sum(s[index]) + sum(a[index]) + sum(params_vec[index]) + sum(s_[index])):
+                        data.append([[s[index], a[index], params_vec[index]], s_[index]])
+            else:
+                if not np.isnan(sum(s) + sum(a) + sum(params_vec) + sum(s_)):
+                    data.append([[s, a, params_vec], s_])
             s=s_
             ep_r+=r
-            if d:
+            if env_cfg.sim_batch_size == 1 and d:
                 break
     if save_to: 
         os.makedirs(save_to, exist_ok=True)
@@ -318,7 +327,7 @@ def train_si(Env, param_dim, epoch=10000, data_path='./', save_to='./', batch_si
                 torch.save(model.state_dict(), save_to+'/si')
     env.close()
 
-def train_dynamics_embedding(Env, param_dim, Type = 'EncoderDynamicsNetwork', epoch=20000, batch_size=64, batch_per_epoch=30, env_settings={}, default_params={}, 
+def train_dynamics_embedding(env_name: str, env_cfg: DictConfig, param_dim, latent_dim, Type = 'EncoderDynamicsNetwork', epoch=20000, batch_size=64, batch_per_epoch=30, 
     save_to=None, load_from=None, data_path='./', print_interval=2, save_interval=100):
     """
     Train the dynamics forward prediction model and dynamics encoder-decoder with a collected dataset.
@@ -326,10 +335,10 @@ def train_dynamics_embedding(Env, param_dim, Type = 'EncoderDynamicsNetwork', ep
     Model output: next state.
     """
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    env = Env(**env_settings, **default_params)
+    env = create_env(env_cfg, verbose=True)
 
     assert Type in ['EncoderDynamicsNetwork', 'EncoderDecoderDynamicsNetwork', 'VAEDynamicsNetwork']
-    model = eval(Type)(env.observation_space, env.action_space, param_dim, latent_dim=HYPER_PARAMS[env.name+'dynamics']['latent_dim'])
+    model = eval(Type)(env.observation_space, env.action_space, param_dim, latent_dim=latent_dim)
 
     if load_from:
         model.load_state_dict(torch.load(load_from, map_location=device))
@@ -355,9 +364,9 @@ def train_dynamics_embedding(Env, param_dim, Type = 'EncoderDynamicsNetwork', ep
             s,a,param = np.stack(x_train, axis=1)   # separate three types of data
             param = np.vstack(param)  # array of list to 2d array
 
-            sa = torch.FloatTensor(np.concatenate((np.vstack(s),np.vstack(a)), axis=-1))   
+            sa = torch.FloatTensor(np.concatenate((np.vstack(s),np.vstack(a)), axis=-1))
             param = torch.FloatTensor(param)            
-            s_ = torch.FloatTensor(y_train).to(device)
+            s_ = torch.FloatTensor(y_train)
             pre_param, pre_s_ = model(sa, param)
             model.optimizer1.zero_grad()
             model.optimizer2.zero_grad()
@@ -396,7 +405,7 @@ def train_dynamics_embedding(Env, param_dim, Type = 'EncoderDynamicsNetwork', ep
 
             sa = torch.FloatTensor(np.concatenate((np.vstack(s),np.vstack(a)), axis=-1))   
             param = torch.FloatTensor(param)            
-            s_ = torch.FloatTensor(y_test).to(device)
+            s_ = torch.FloatTensor(y_test)
             pre_param, pre_s_ = model(sa, param)
             loss1_test= model.loss_dynamics(pre_s_, s_).item()
             if Type == 'EncoderDynamicsNetwork':
@@ -424,15 +433,25 @@ def train_dynamics_embedding(Env, param_dim, Type = 'EncoderDynamicsNetwork', ep
 if __name__ == '__main__':
     cfg = OmegaConf.merge(OmegaConf.load('../cfg/dynamics.yaml'), OmegaConf.from_cli())
     assert os.path.exists(cfg.basic.load_path)
-    print(f'current path: {cfg.basic.load_path}, env: {cfg.basic.env_name}, parameters dimension: {len(cfg.dynamics_params_list.current)}')
+    print(f'current path: {cfg.basic.load_path}, env: {cfg.basic.env_name}')
 
     if env_name2env_type[cfg.basic.env_name] == 'isaac':
         cfg.env.using_isaacgym = True
         cfg.env.raw_env_cfg = OmegaConf.load(cfg.basic.main_yaml_path)
         cfg.env.raw_env_cfg.task = OmegaConf.load(cfg.basic.task_yaml_path)
+    else:
+        print(f"parameters dimension: {len(cfg.dynamics_params_list.current)}")
 
     if cfg.basic.command == 'collect_train_data':
         collect_train_data(cfg.basic.env_name, cfg.env, cfg.basic.load_path, cfg.basic.save_dir, cfg.basic.episodes)
+    elif cfg.basic.command == 'train_dynamics_embedding':
+        train_dynamics_embedding(cfg.basic.env_name, cfg.env,
+         param_dim=len(cfg.dynamics_params_list.current),
+         latent_dim=cfg.hyper_params.current.latent_dim,
+         Type=cfg.train.dynamics_network_type,
+         data_path=cfg.train.load_path,
+         save_to=cfg.train.save_dir
+        )
     
     if args.CollectTestData:
         if args.env == 'pandapushik2dsimple':
@@ -467,9 +486,6 @@ if __name__ == '__main__':
     if args.TrainSI:
         train_si(Env, param_dim=param_dim, data_path=path+'/data/si_data/{}/data.npy'.format(args.env), save_to=path+'/data/si_data/{}/model/dim{}'.format(args.env, str(param_dim)))
     
-    file_name = ['dynamics', 'norm_dynamics'][1]
-    Type = ['EncoderDynamicsNetwork', 'EncoderDecoderDynamicsNetwork', 'VAEDynamicsNetwork'][2]
-    
     if args.TrainDynamics:  # train dynamics forward prediction model without embedding
         train_dynamics(Env, param_dim=param_dim, data_path=path+'/data/dynamics_data/{}/{}.npy'.format(args.env, file_name), save_to=path+'/data/dynamics_data/{}/model/dim{}'.format(args.env, str(param_dim)))
 
@@ -481,9 +497,3 @@ if __name__ == '__main__':
             print("No real data for env: ", args.env)
         
         train_params(Env, embedding, dynamics_model_path=path+'/data/dynamics_data/{}/model/{}_dim{}/dynamics'.format(args.env, Type, str(param_dim)), data_path=data_path)
-
-    if args.TrainEmbedding:  # train dynamics forward prediction model and the embedding model
-        train_dynamics_embedding(Env, Type = Type, param_dim=param_dim, data_path=path+'/data/dynamics_data/{}/{}.npy'.format(args.env, file_name), \
-            save_to=path+'/data/dynamics_data/{}/model/{}_dim{}/'.format(args.env, Type, str(param_dim)))
-
-        

@@ -7,9 +7,16 @@ basic:
   load_dir: ../data/weights/${.load_date}_${.load_time}${.load_seed}
   load_episode: ???
   load_path: ${.load_dir}/${.load_episode}_td3_policy
-  save_dir: ../data/dynamics_data/${.env_name}
-  episodes: 10000
+  save_dir: ../data/dynamics_data/${.env_name}/
+  episodes: 200
   render: False
+  main_yaml_path: ../cfg/isaacgymenvs/config.yaml
+  task_yaml_path: ../cfg/isaacgymenvs/task/${.env_name}.yaml
+train:
+  file_name: norm_dynamics
+  dynamics_network_type: EncoderDecoderDynamicsNetwork
+  load_path: ${..basic.save_dir}/${.file_name}.npy
+  save_dir: ${..basic.save_dir}/model/${.dynamics_network_type}_dim${..hyper_params.current.latent_dim}/
 env:
   name: ${..basic.env_name}
   using_isaacgym: False
@@ -74,6 +81,15 @@ dynamics_params_list:
     - fthigh_stiffness
     - fshin_stiffness
     - ffoot_stiffness
+  ShadowHand: # Dummy
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
 hyper_params:
   current: '${
     if:${contains:pandapush, ${..basic.env_name}},
@@ -86,3 +102,5 @@ hyper_params:
     latent_dim: 2
   halfcheetah:
     latent_dim: 4
+  ShadowHand:
+    latent_dim: 2

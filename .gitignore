@@ -6,3 +6,4 @@ data/weights
 *.npy
 runs
 .vscode
+data/dynamics_data/ShadowHand/model

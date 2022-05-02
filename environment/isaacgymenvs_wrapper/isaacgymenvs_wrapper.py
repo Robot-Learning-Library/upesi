@@ -6,6 +6,7 @@ class IsaacGymEnvWrapper:
         self.env = env
         self.observation_space = self.env.observation_space
         self.action_space = self.env.action_space
+        self.name = env.__class__.__name__
         self.env.max_episode_length = 1000000000 # now all resets are invoked manually by .reset()
 
     def reset(self):
@@ -19,6 +20,7 @@ class IsaacGymEnvWrapper:
         return self.step(action)[0]
 
     def step(self, action: ndarray):
+        # returns the full params vec as `info` at the same time
         action = Tensor(action).cuda()
         next_state, reward, done, info = self.env.step(action)
 
@@ -26,7 +28,7 @@ class IsaacGymEnvWrapper:
         reward = reward.detach().cpu().numpy()
         done = done.detach().cpu().numpy()
 
-        return next_state, reward, done, info
+        return next_state, reward, done, {'params_vec': info.get('params_vec')}
 
     def render(self):
         # render process is inside self.env.step()

@@ -13,6 +13,7 @@ fi
 rm -rf isaacgym
 tar --totals -xf Isaac*.tar.gz
 cd isaacgym
+sed -i '620i\    return sample' python/isaacgym/gymutil.py
 
 echo -e "\033[32m creating rlgpu python env \033[0m"
 cat ~/.condarc

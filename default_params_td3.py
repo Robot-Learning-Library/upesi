@@ -238,7 +238,7 @@ def get_hyperparams(env_name):
         hyperparams_dict={
         'alg_name': 'td3',
         'max_steps': 600,
-        'max_episodes': 10000,
+        'max_episodes': 200,
         'action_range': 1,  # on joint
         'batch_size': 640,
         'explore_steps': 0,
