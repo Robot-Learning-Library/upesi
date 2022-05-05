@@ -1,0 +1,82 @@
+env_name: ???
+data_path: ../data/dynamics_data/${.env_name}/test_dynamics.npy
+s_norm_factor_path: ../data/dynamics_data/${.env_name}/norm_factor_s.npy
+s__norm_factor_path: ../data/dynamics_data/${.env_name}/norm_factor_s_.npy
+dynamics_params_list:
+  current: '${
+    if:${contains:pandapush, ${..env_name}},
+       ${.pandapush},
+       ${.${..env_name}}
+  }'
+  pandapush:
+    - joint1_damping
+    - joint2_damping
+    - joint3_damping
+    - joint4_damping
+    - joint5_damping
+    - joint6_damping
+    - joint7_damping
+    - joint1_armature
+    - joint2_armature
+    - joint3_armature
+    - joint4_armature
+    - joint5_armature
+    - joint6_armature
+    - joint7_armature
+    - actuator_velocity_joint1_kv
+    - actuator_velocity_joint2_kv
+    - actuator_velocity_joint3_kv
+    - actuator_velocity_joint4_kv
+    - actuator_velocity_joint5_kv
+    - actuator_velocity_joint6_kv
+    - actuator_velocity_joint7_kv
+    - boxobject_size_0
+    - boxobject_size_1
+    - boxobject_size_2
+    - boxobject_friction_0
+    - boxobject_friction_1
+    - boxobject_friction_2
+    - boxobject_density_1000
+  inverteddoublependulum:
+    - damping
+    - gravity
+    - length_1
+    - length_2
+    - density
+  halfcheetah:
+    - gravity
+    - bthigh_damping
+    - bshin_damping
+    - bfoot_damping
+    - fthigh_damping
+    - fshin_damping
+    - ffoot_damping
+    - bthigh_stiffness
+    - bshin_stiffness
+    - bfoot_stiffness
+    - fthigh_stiffness
+    - fshin_stiffness
+    - ffoot_stiffness
+  ShadowHand: # Dummy
+    - 1
+    - 2
+    - 3
+    - 4
+    - 5
+    - 6
+    - 7
+    - 8
+hyper_params:
+  current: '${
+    if:${contains:pandapush, ${..env_name}},
+       ${.pandapush},
+       ${.${..env_name}}
+  }'
+  pandapush:
+    latent_dim: 5
+  inverteddoublependulum:
+    latent_dim: 2
+  halfcheetah:
+    latent_dim: 4
+  ShadowHand:
+    latent_dim: 2

@@ -139,30 +139,33 @@ def process_si_train_data(Env, load_from=None, save_to=None, frame_stack=5):
         np.save(save_to+'/data.npy', proc_data)
 
 
-def collect_test_data(Env, load_from=None, save_to=None, num_params=10, episodes_per_param=100, env_settings={}, default_params={},):
+def collect_test_data(env_name, env_cfg, load_from, save_to, num_params, episodes_per_param):
     """
     Collect the test dataset.
     """
-    env = Env(**env_settings, **default_params)
-    params_key  = ['max_steps', 'hidden_dim', 'action_range']
-    params = {k:v for k,v in zip (params_key, load_params('td3', env.__class__.__name__.lower(), params_key))}
-    policy = load_policy(env, load_from, params)
+    env = create_env(env_cfg, verbose=True)
+    train_param_dict = load_default_training_params('td3', env_name)
+    policy = load_policy(env, load_from, train_param_dict)
     if not policy.action_range:
         policy.action_range = env.action_space.high[0]  # mujoco env gives the range of action and it is symmetric
 
     data = []
-    
     for n in range(num_params):
         print(n)
         sal = []
         s_l = []
-        param_dict, param_vec = rand_params(env, DYNAMICS_PARAMS[env.name+'dynamics'])
+        if env_cfg.using_isaacgym:
+            rand_param_dict, param_vec = rand_params(env, DYNAMICS_PARAMS[env.name+'dynamics'])
         for epi in range(episodes_per_param):
-            s = env.reset(**param_dict)
-            for step in range(params['max_steps']):
+            if env_cfg.using_isaacgym:
+                s = env.reset()
+            else:
+                s = env.reset(**rand_param_dict)
+
+            for step in range(train_param_dict['max_steps']):
                 a = policy.get_action(s, noise_scale=0.0)
-                s_, r, d, _ = env.step(a)
-                # env.render()
+                s_, r, d, i = env.step(a)
+
                 sal.append(np.concatenate((s,a)))
                 s_l.append(s_)
                 s=s_
@@ -444,6 +447,8 @@ if __name__ == '__main__':
 
     if cfg.basic.command == 'collect_train_data':
         collect_train_data(cfg.basic.env_name, cfg.env, cfg.basic.load_path, cfg.basic.save_dir, cfg.basic.episodes)
+    elif cfg.basic.command == 'collect_test_data':
+        collect_test_data(cfg.basic.env_name, cfg.env, cfg.basic.load_path, cfg.basic.save_dir, cfg.basic.episodes)
     elif cfg.basic.command == 'train_dynamics_embedding':
         train_dynamics_embedding(cfg.basic.env_name, cfg.env,
          param_dim=len(cfg.dynamics_params_list.current),
@@ -452,16 +457,6 @@ if __name__ == '__main__':
          data_path=cfg.train.load_path,
          save_to=cfg.train.save_dir
         )
-    
-    if args.CollectTestData:
-        if args.env == 'pandapushik2dsimple':
-            collect_test_data(Env, load_from=path+'/data/weights/20210119_2007/4000'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env, episodes_per_param=10)
-        if args.env == 'pandapushfk':
-            collect_test_data(Env, load_from=path+'/data/weights/20210301_222527/4999'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env, episodes_per_param=30)
-        elif args.env == 'inverteddoublependulum':
-            collect_test_data(Env, load_from=path+'/data/weights/20201230_1735/1950'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env, episodes_per_param=1000)
-        elif args.env == 'halfcheetah':
-            collect_test_data(Env, load_from=path+'/data/weights/20210203_153134/22000'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env, episodes_per_param=100)
 
     if args.ProcessSITrainData:
         if args.env == 'pandapushik2dsimple':
