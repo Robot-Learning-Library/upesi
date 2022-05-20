@@ -9,14 +9,15 @@ import gym
 import numpy as np
 import torch
 from torch.distributions import Normal
+from torch.utils.tensorboard import SummaryWriter
 import queue
 
 from rl.optimizers import SharedAdam, ShareParameters
 from rl.buffers import ReplayBuffer
 from rl.value_networks import QNetwork
 from rl.policy_networks import DPG_PolicyNetwork
-from utils.load_params import load_params
 from utils.common_func import rand_params
+from environment import create_env
 import os
 import copy
 
@@ -179,20 +180,19 @@ class TD3_Trainer():
         ShareParameters(self.policy_optimizer)
 
 
-def worker(id, td3_trainer, envs, env_name, rewards_queue, eval_rewards_queue, success_queue,\
+def worker(id, td3_trainer, env_name, env_cfg, rewards_queue, eval_rewards_queue, success_queue,\
         eval_success_queue, eval_interval, replay_buffer, max_episodes, max_steps, batch_size,\
         explore_steps, noise_decay, update_itr, explore_noise_scale, eval_noise_scale, reward_scale,\
         gamma, soft_tau, DETERMINISTIC, hidden_dim, model_path, render, randomized_params, seed=1):
     '''
     the function for sampling with multi-processing
     '''
+    writer = SummaryWriter()
+    env = create_env(env_cfg)
+    
     with torch.cuda.device(id % torch.cuda.device_count()):
         td3_trainer.to_cuda()
         print(td3_trainer, replay_buffer)
-        try:
-            env = gym.make(envs[env_name])  # mujoco env
-        except:
-            env = envs[env_name]()  # robot env
         frame_idx=0
         rewards=[]
         current_explore_noise_scale = explore_noise_scale
@@ -220,10 +220,7 @@ def worker(id, td3_trainer, envs, env_name, rewards_queue, eval_rewards_queue, s
                 except MujocoException:
                     print('MujocoException')
                     # recreate an env, since sometimes reset not works, the env might be broken
-                    try:
-                        env = gym.make(env_name)  # mujoco env
-                    except:
-                        env = envs[env_name]()  # robot env
+                    env = create_env(env_cfg)
 
                     # td3_trainer.policy_net = td3_trainer.target_ini(td3_trainer.target_policy_net, td3_trainer.policy_net)  # reset policy net as target net
                     try:  # recover the policy from last savepoint
@@ -245,6 +242,8 @@ def worker(id, td3_trainer, envs, env_name, rewards_queue, eval_rewards_queue, s
                 if done:
                     break
             print('Worker: ', id, '|Episode: ', eps, '| Episode Reward: ', episode_reward, '| Step: ', step)
+            writer.add_scalar('episode_reward', np.sum(episode_reward), eps)
+            writer.flush()
             rewards_queue.put(episode_reward)
 
             if eps % eval_interval == 0 and eps>0:  # only one process update

@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 import torch
 import sys, os
 sys.path.append(os.path.dirname(os.getcwd()))
-from environment import envs
+from environment import our_envs
 from dynamics_predict.defaults import DYNAMICS_PARAMS, HYPER_PARAMS
 from bayes_opt import BayesianOptimization
 from dynamics_predict.dynamics_networks import DynamicsNetwork
@@ -17,7 +17,7 @@ class EmbeddingBayesianOptimization():
     def __init__(self, Env_name, real_data_path, dynamics_model_path):
         self.x = torch.Tensor(np.load(real_data_path+'sa.npy'))
         self.y = torch.Tensor(np.load(real_data_path+'s_.npy'))
-        env = envs[Env_name]()
+        env = our_envs[Env_name]()
         self.dynamics_model = DynamicsNetwork(state_space=env.observation_space, action_space=env.action_space, num_hidden_layers=6, param_dim=HYPER_PARAMS['latent_dim'])
         self.dynamics_model.load_state_dict(torch.load(dynamics_model_path))
 

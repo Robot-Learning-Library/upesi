@@ -1,0 +1,5 @@
+matplotlib
+gym==0.19
+termcolor
+omegaconf
+tensorboard
