@@ -1,5 +1,5 @@
 def get_hyperparams(env_name):
-    if 'pandaopendoorfk' in env_name:
+    if 'pandaopendoor' in env_name:
         hyperparams_dict={
         'alg_name': 'td3',
         # 'max_steps': 300,

@@ -6,9 +6,11 @@ echo -e "\033[32m creating upesi python env \033[0m"
 cat ~/.condarc
 CONDA_DIR="$(conda info --base)"
 source "${CONDA_DIR}/etc/profile.d/conda.sh"
+conda deactivate
+conda env remove -n upesi
 conda create -y -n upesi python=3.7
 conda activate upesi
-conda install -y pytorch=1.8.1 cudatoolkit=11.1 -c pytorch
+conda install -y pytorch cudatoolkit=10.2 -c pytorch-lts
 cd ..
 
 echo -e "\033[32m installing mujoco dependencies \033[0m"

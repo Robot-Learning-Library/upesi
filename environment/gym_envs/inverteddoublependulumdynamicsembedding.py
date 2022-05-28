@@ -39,7 +39,7 @@ class InvertedDoublePendulumDynamicsEmbeddingEnv(_InvertedDoublePendulumDynamics
         encoder.eval()
         # print(encoder)
     except: 
-        print("Error: encoder not found!")
+        print("Warning: encoder not found!")
     alpha=None
 
     def __init__(self, norm_factor_path='/data/dynamics_data/inverteddoublependulum/norm_factor.npy', **kwargs):

@@ -16,6 +16,8 @@ from .gym_envs.halfcheetah import HalfCheetahEnv
 from .gym_envs.halfcheetahdynamics import HalfCheetahDynamicsEnv
 from .gym_envs.halfcheetahdynamicsembedding import HalfCheetahDynamicsEmbeddingEnv
 
+from .robolite_modified.panda_open_door import PandaOpenDoor
+
 our_envs = {
     'acrobot': AcrobotEnv,
     'cartpole': CartPoleEnv,
@@ -30,14 +32,23 @@ our_envs = {
     'halfcheetahdynamicsembedding': HalfCheetahDynamicsEmbeddingEnv,
 }
 
+robolite_envs = {
+    'pandaopendoor': PandaOpenDoor
+}
+
 MUJOCO_OUR_ENVS_LIST = our_envs.keys()
 MUJOCO_GYM_ENVS_LIST = [env_spec.id for env_spec in envs]
+ROBOLITE_ENVS_LIST= robolite_envs.keys()
 
 def create_env(cfg: DictConfig, verbose=False) -> Env:
     if cfg.name in MUJOCO_OUR_ENVS_LIST:
         if verbose:
             print(f'name: {cfg.name}, type: ours')
         return our_envs[cfg.name]()
+    elif cfg.name in ROBOLITE_ENVS_LIST:
+        if verbose:
+            print(f'name: {cfg.name}, type: robolite')
+        return robolite_envs[cfg.name]()
     elif cfg.name in MUJOCO_GYM_ENVS_LIST:
         if verbose:
             print(f'name: {cfg.name}, type: gym mujoco')
