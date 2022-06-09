@@ -36,6 +36,11 @@ python train.py basic.env_name=inverteddoublependulum
 ```
 as an example for the InvertedDoublePendulum environment, using TD3 algorithm for training. After training, there will be weights in the data folder. You just need to replace the model path in later scripts with the one you got to make it run.
 
+To test it:
+```
+python train.py basic.env_name=pandaopendoor basic.test=True basic.render=True basic.path=20220609101442 basic.model_id=9000 basic.train=False
+```
+
 Go to the directory:
  ```bash
   cd dynamics_predict
