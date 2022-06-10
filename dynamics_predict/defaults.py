@@ -29,6 +29,13 @@ DYNAMICS_PARAMS = {
     # 'pandaik_z_proportional_gain'
     ], 
 
+    'pandaopendoordynamics': [
+    'joint1_damping', 'joint2_damping', 'joint3_damping', 'joint4_damping', 'joint5_damping', 'joint6_damping', 'joint7_damping', 
+    'joint1_armature', 'joint2_armature', 'joint3_armature', 'joint4_armature', 'joint5_armature', 'joint6_armature', 'joint7_armature', 
+    'knob_friction', 'hinge_stiffness', 'hinge_damping', 'hinge_frictionloss', 'door_mass', 'knob_mass', \
+    # 'table_position_offset_x', 'table_position_offset_y'
+    ],
+
     'inverteddoublependulumdynamics': [ 
             'damping',
             'gravity',
@@ -57,6 +64,7 @@ DYNAMICS_PARAMS = {
 HYPER_PARAMS={
     'pandapushik2dsimpledynamics': {'latent_dim': 5, } ,
     'pandapushfkdynamics': {'latent_dim': 5, } ,
+    'pandaopendoordynamics': {'latent_dim': 6, } ,
     'inverteddoublependulumdynamics': {'latent_dim': 2, } ,
     'halfcheetahdynamics': {'latent_dim': 4, } ,
 }

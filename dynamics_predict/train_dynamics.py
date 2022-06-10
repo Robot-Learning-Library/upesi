@@ -9,7 +9,7 @@ from dynamics_networks import DynamicsNetwork, SINetwork, DynamicsParamsOptimize
 from rl.policy_networks import DPG_PolicyNetwork
 from utils.load_params import load_params
 from utils.common_func import rand_params
-from environment import our_envs
+from environment import our_envs, robolite_envs
 from defaults import DYNAMICS_PARAMS, HYPER_PARAMS
 from torch.utils.tensorboard import SummaryWriter
 import argparse
@@ -169,7 +169,7 @@ def train_dynamics(Env, param_dim, epoch=20000, batch_size=64, batch_per_epoch=3
     """
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     env = Env(**env_settings, **default_params)
-    model = DynamicsNetwork(env.observation_space, env.action_space, param_dim)
+    model = DynamicsNetwork(env.observation_space, env.action_space, param_dim).to(device)
 
     if load_from:
         model.load_state_dict(torch.load(load_from, map_location=device))
@@ -321,7 +321,7 @@ def train_dynamics_embedding(Env, param_dim, Type = 'EncoderDynamicsNetwork', ep
     env = Env(**env_settings, **default_params)
 
     assert Type in ['EncoderDynamicsNetwork', 'EncoderDecoderDynamicsNetwork', 'VAEDynamicsNetwork']
-    model = eval(Type)(env.observation_space, env.action_space, param_dim, latent_dim=HYPER_PARAMS[env.name+'dynamics']['latent_dim'])
+    model = eval(Type)(env.observation_space, env.action_space, param_dim, latent_dim=HYPER_PARAMS[env.name+'dynamics']['latent_dim']).to(device)
 
     if load_from:
         model.load_state_dict(torch.load(load_from, map_location=device))
@@ -347,8 +347,8 @@ def train_dynamics_embedding(Env, param_dim, Type = 'EncoderDynamicsNetwork', ep
             s,a,param = np.stack(x_train, axis=1)   # separate three types of data
             param = np.vstack(param)  # array of list to 2d array
 
-            sa = torch.FloatTensor(np.concatenate((np.vstack(s),np.vstack(a)), axis=-1))   
-            param = torch.FloatTensor(param)            
+            sa = torch.FloatTensor(np.concatenate((np.vstack(s),np.vstack(a)), axis=-1)).to(device)   
+            param = torch.FloatTensor(param).to(device)            
             s_ = torch.FloatTensor(y_train).to(device)
             pre_param, pre_s_ = model(sa, param)
             model.optimizer1.zero_grad()
@@ -386,8 +386,8 @@ def train_dynamics_embedding(Env, param_dim, Type = 'EncoderDynamicsNetwork', ep
             s,a,param = np.stack(x_test, axis=1) 
             param = np.vstack(param)  # array of list to 2d array
 
-            sa = torch.FloatTensor(np.concatenate((np.vstack(s),np.vstack(a)), axis=-1))   
-            param = torch.FloatTensor(param)            
+            sa = torch.FloatTensor(np.concatenate((np.vstack(s),np.vstack(a)), axis=-1)).to(device)    
+            param = torch.FloatTensor(param).to(device)             
             s_ = torch.FloatTensor(y_test).to(device)
             pre_param, pre_s_ = model(sa, param)
             loss1_test= model.loss_dynamics(pre_s_, s_).item()
@@ -427,15 +427,20 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     path = os.path.abspath(os.path.join(os.path.dirname(__file__),".."))
-    Env = our_envs[args.env]  # 'pandapushik2dsimple' or 'inverteddoublependulum'
+    try:
+        Env = our_envs[args.env]  # 'pandapushik2dsimple' or 'inverteddoublependulum'
+    except:
+        Env = robolite_envs[args.env]
     param_dim = len(DYNAMICS_PARAMS[args.env+'dynamics'])
     print('current path: {}, env: {}, parameters dimension: {}'.format(path,Env,param_dim))
 
     if args.CollectTrainData:
         if args.env == 'pandapushik2dsimple':
             collect_train_data(Env, load_from=path+'/data/weights/20210119_2007/4000'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env)
-        if args.env == 'pandapushfk':
+        elif args.env == 'pandapushfk':
             collect_train_data(Env, load_from=path+'/data/weights/20210301_222527/4999'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env, episodes=3000)
+        elif args.env == 'pandaopendoor':
+            collect_train_data(Env, load_from=path+'/data/weights/20220609101442/9500'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env, episodes=3000)
         elif args.env == 'inverteddoublependulum':
             # collect_train_data(Env, load_from=path+'/data/weights/20201230_2039/1800'+'_td3_policy', save_to=path+args.env+'/data/dynamics_data')
             collect_train_data(Env, load_from=path+'/data/weights/20201230_1735/1950'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env, episodes=10000)
@@ -445,8 +450,10 @@ if __name__ == '__main__':
     if args.CollectTestData:
         if args.env == 'pandapushik2dsimple':
             collect_test_data(Env, load_from=path+'/data/weights/20210119_2007/4000'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env, episodes_per_param=10)
-        if args.env == 'pandapushfk':
+        elif args.env == 'pandapushfk':
             collect_test_data(Env, load_from=path+'/data/weights/20210301_222527/4999'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env, episodes_per_param=30)
+        elif args.env == 'pandaopendoor':
+            collect_test_data(Env, load_from=path+'/data/weights/20220609101442/9500'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env, episodes_per_param=30)
         elif args.env == 'inverteddoublependulum':
             collect_test_data(Env, load_from=path+'/data/weights/20201230_1735/1950'+'_td3_policy', save_to=path+'/data/dynamics_data/'+args.env, episodes_per_param=1000)
         elif args.env == 'halfcheetah':

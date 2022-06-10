@@ -18,6 +18,7 @@ if __name__ == '__main__':
 
     if cfg.basic.alg=='td3':
         from rl.td3.train_td3 import train_td3
+        print(cfg)
         train_td3(env, cfg)
     elif cfg.basic.alg=='ppo':
         from rl.ppo.train_ppo import train_ppo

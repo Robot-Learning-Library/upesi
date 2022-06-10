@@ -55,7 +55,7 @@ def train_td3(env, cfg):
 
     if basic_cfg.train: 
         if basic_cfg.finetune:
-            td3_trainer.load_model('./data/weights/'+ basic_cfg.path +'/{}_td3'.format(basic_cfg.model_id))
+            td3_trainer.load_model('./data/weights/'+ str(basic_cfg.path) +'/{}_td3'.format(str(basic_cfg.model_id)))
         td3_trainer.share_memory()
 
         rewards_queue=mp.Queue()  # used for get rewards from all processes and plot the curve
@@ -89,10 +89,10 @@ def train_td3(env, cfg):
         [p.join() for p in processes]  # finished at the same time
 
         td3_trainer.save_model(model_path)
-        
+    
     if basic_cfg.test:
         import time
-        model_path = './data/weights/'+ basic_cfg.path +'/{}_td3'.format(str(basic_cfg.model_id))
+        model_path = './data/weights/'+ str(basic_cfg.path) +'/{}_td3'.format(str(basic_cfg.model_id))
         print('Load model from: ', model_path)
         td3_trainer.load_model(model_path)
         td3_trainer.to_cuda()
@@ -103,6 +103,8 @@ def train_td3(env, cfg):
         dist_threshold_max = 0.07
         if no_DR:
             randomized_params=None
+        else:
+            randomized_params = train_cfg.randomized_params
         print(randomized_params)
         for eps in range(10):
             if not no_DR:
